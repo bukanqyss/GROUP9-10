@@ -11,7 +11,7 @@
         h1, h2 { text-align: center; }
         ul { list-style-type: none; padding: 0; }
         li { margin-bottom: 10px; }
-        #map { height: 600px; } /* Adjust map height as needed */
+        #map { height: 600px; } /
     </style>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
@@ -22,7 +22,8 @@
         
         <!-- Search form -->
         <form action="search.php" method="GET">
-            <input type="text" name="query" placeholder="Enter your search query">
+            <input type="text" name="query" placeholder="Enter NmPkk">
+            <input type="number" name="radius" placeholder="Enter radius (km)" required>
             <button type="submit">Search</button>
         </form>
         
@@ -30,9 +31,14 @@
         
         <?php
         // Check if the query parameter is set
-        if (isset($_GET['query'])) {
-            // Get the search query from the URL parameter
+        if (isset($_GET['query']) && isset($_GET['radius'])) {
+            // Get the search query and radius from the URL parameters
             $searchQuery = $_GET['query'];
+            $radius = floatval($_GET['radius']);
+            
+            // Default latitude and longitude for the center of the search area
+            $latitude = 1.4624; // Replace with a default center latitude
+            $longitude = 103.6447; // Replace with a default center longitude
             
             // Database connection parameters
             $servername = "localhost";
@@ -48,12 +54,16 @@
                 die("Connection failed: " . $conn->connect_error);
             }
             
-            // Prepare SQL query to fetch latitude, longitude, NmPkk, and site for the given TID
-            $sql = "SELECT latitud, longitud, NmPkk, site FROM trees WHERE tid = ?";
+            // Prepare SQL query to fetch latitude, longitude, NmPkk, and site within the radius
+            $sql = "SELECT latitud, longitud, NmPkk, site, 
+                           (6371 * acos(cos(radians(?)) * cos(radians(latitud)) * cos(radians(longitud) - radians(?)) + sin(radians(?)) * sin(radians(latitud)))) AS distance
+                    FROM trees
+                    HAVING distance < ?
+                    AND NmPkk = ?";
             
             // Bind parameters
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("s", $searchQuery);
+            $stmt->bind_param("dddds", $latitude, $longitude, $latitude, $radius, $searchQuery);
             
             // Execute query
             $stmt->execute();
@@ -63,11 +73,11 @@
             
             // Display search results
             if ($result->num_rows > 0) {
-                echo "<h2>Search Results for '$searchQuery'</h2>";
+                echo "<h2>Search Results for '$searchQuery' within $radius km</h2>";
                 echo "<ul>";
                 $markers = [];
                 while ($row = $result->fetch_assoc()) {
-                    echo "<li>Latitude: {$row['latitud']}, Longitude: {$row['longitud']}, NmPkk: {$row['NmPkk']}, Site: {$row['site']}</li>";
+                    
                     $markers[] = $row;
                 }
                 echo "</ul>";
@@ -80,7 +90,7 @@
                 
                 echo "<script>
                     document.addEventListener('DOMContentLoaded', function() {
-                        var map = L.map('map').setView([1.4624, 103.6447], 15); // Initial map center and zoom
+                        var map = L.map('map').setView([$latitude, $longitude], 15); // Initial map center and zoom
                         
                         // Add tile layer to map (example using OpenStreetMap)
                         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -90,8 +100,9 @@
                         // Add markers to the map
                         var markers = $markersJson;
                         markers.forEach(function(marker) {
-                            var popupContent = '<table><tr><th colspan=\"2\">Tree ID: $searchQuery</th></tr>' +
-                                               '<tr><td>NmPkk:</td><td>' + marker.NmPkk + '</td></tr>' +
+                            var popupContent = '<table><tr><th colspan=\"2\">NmPkk: ' + marker.NmPkk + '</th></tr>' +
+                                               '<tr><td>Latitude:</td><td>' + marker.latitud + '</td></tr>' +
+                                               '<tr><td>Longitude:</td><td>' + marker.longitud + '</td></tr>' +
                                                '<tr><td>Site:</td><td>' + marker.site + '</td></tr></table>';
                             var markerInstance = L.marker([marker.latitud, marker.longitud]).addTo(map);
                             markerInstance.bindPopup(popupContent);
@@ -100,7 +111,7 @@
                     });
                 </script>";
             } else {
-                echo "<p>No results found for '$searchQuery'</p>";
+                echo "<p>No results found for '$searchQuery' within $radius km</p>";
             }
             
             // Close statement and connection
