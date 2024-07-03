@@ -1,2 +1,2 @@
 # GROUP_9-10
- proximity 
+ searching query based on attributes and proximity in km 
