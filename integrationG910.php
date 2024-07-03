@@ -21,7 +21,7 @@
         <h1>Search trees</h1>
         
         <!-- Search form -->
-        <form action="search.php" method="GET">
+        <form action="integrationG910.php" method="GET">
             <input type="text" name="query" placeholder="Enter NmPkk">
             <input type="number" name="radius" placeholder="Enter radius (km)" required>
             <button type="submit">Search</button>
