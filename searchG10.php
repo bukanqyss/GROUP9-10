@@ -21,8 +21,8 @@
         <h1>Search trees</h1>
         
         <!-- Search form -->
-        <form action="search.php" method="GET">
-            <input type="text" name="query" placeholder="Enter your search query">
+        <form action="searchG10.php" method="GET">
+            <input type="text" name="query" placeholder="Enter your search treeid">
             <button type="submit">Search</button>
         </form>
         
